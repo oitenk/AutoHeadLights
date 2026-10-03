@@ -49,7 +49,6 @@ In game: **Settings → Mods → Auto Headlights**.
 
 ## Notes
 
-- If you use Alt as the modifier, alt-tabbing out mid-press can leave the game thinking Alt is still held until you tap it again. Shift or Ctrl avoid this.
 - Other headlight mods may conflict.
 
 ## License
