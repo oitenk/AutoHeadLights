@@ -45,6 +45,7 @@ In game: **Settings → Mods → Auto Headlights**.
 | Darkness detection | Lights off from (hour) | 6 |
 | Darkness detection | Bad weather turns lights on | On |
 | Darkness detection | Tunnels turn lights on | On |
+| Darkness detection | Tunnel ceiling height (m) | 10 |
 | Timing | Night / weather delay (s) | 1.0 |
 | Timing | Tunnel delay (s) | 3.0 |
 | Timing | Lights off delay (s) | 4.0 |

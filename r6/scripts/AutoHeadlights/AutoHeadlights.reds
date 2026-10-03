@@ -102,6 +102,15 @@ public class AHL_Config {
   public let useCover: Bool = true;
 
   @runtimeProperty("ModSettings.mod", "Auto Headlights")
+  @runtimeProperty("ModSettings.category", "Darkness detection")
+  @runtimeProperty("ModSettings.displayName", "Tunnel ceiling height (m)")
+  @runtimeProperty("ModSettings.description", "How far above the vehicle a roof still counts as cover. Lower this if high overpasses and elevated highways trigger the lights.")
+  @runtimeProperty("ModSettings.min", "5.0")
+  @runtimeProperty("ModSettings.max", "45.0")
+  @runtimeProperty("ModSettings.step", "1.0")
+  public let coverHeight: Float = 10.0;
+
+  @runtimeProperty("ModSettings.mod", "Auto Headlights")
   @runtimeProperty("ModSettings.category", "Timing")
   @runtimeProperty("ModSettings.displayName", "Night / weather delay (s)")
   @runtimeProperty("ModSettings.description", "Seconds of night or bad weather before the lights come on.")
@@ -269,6 +278,7 @@ public abstract class AHL_Settings {
   public static func DawnHour() -> Int32 { return AHL_Cfg().dawnHour; }
   public static func UseWeather() -> Bool { return AHL_Cfg().useWeather; }
   public static func UseCoverDetection() -> Bool { return AHL_Cfg().useCover; }
+  public static func CoverHeight() -> Float { return AHL_Cfg().coverHeight; }
   public static func NightWeatherDelay() -> Float { return AHL_Cfg().nightWeatherDelay; }
   public static func TunnelDelay() -> Float { return AHL_Cfg().tunnelDelay; }
   public static func OffDelay() -> Float { return AHL_Cfg().offDelay; }
@@ -513,7 +523,8 @@ private final func AHL_IsUnderCover(vehicle: ref<VehicleObject>) -> Bool {
 private final func AHL_RayHitsCeiling(spatial: ref<SpatialQueriesSystem>, origin: Vector4) -> Bool {
   let traceResult: TraceResult;
   let start: Vector4 = origin + new Vector4(0.0, 0.0, 2.5, 0.0);
-  let end: Vector4 = start + new Vector4(0.0, 0.0, 40.0, 0.0);
+  // Ray ends at the configured ceiling height above the vehicle.
+  let end: Vector4 = origin + new Vector4(0.0, 0.0, MaxF(AHL_Settings.CoverHeight(), 3.0), 0.0);
 
   return spatial.SyncRaycastByCollisionGroup(start, end, n"Static", traceResult, false, false);
 }
