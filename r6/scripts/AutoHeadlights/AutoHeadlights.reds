@@ -10,6 +10,8 @@ import Codeware.*
 //    - gloomy weather (rain, fog, pollution, sandstorm, heavy clouds)
 //    - being under cover (tunnels, garages, overpasses) - with its own delay
 //
+//  Motorcycles can optionally keep their headlight on at all times.
+//
 //  Self-contained: uses only vanilla game APIs and does not reference or
 //  modify any other mod. When another mod (or the vanilla game) forces the
 //  headlights on as you get in or start the engine, this script runs a short
@@ -62,6 +64,12 @@ public class AHL_Config {
   @runtimeProperty("ModSettings.displayName", "Show notifications")
   @runtimeProperty("ModSettings.description", "Show a short on-screen message when auto mode is paused or resumed.")
   public let notifications: Bool = true;
+
+  @runtimeProperty("ModSettings.mod", "Auto Headlights")
+  @runtimeProperty("ModSettings.category", "General")
+  @runtimeProperty("ModSettings.displayName", "Motorcycle headlights always on")
+  @runtimeProperty("ModSettings.description", "When on, motorcycles keep their headlight on whenever the engine is running, day or night. Cars are unaffected.")
+  public let bikesAlwaysOn: Bool = true;
 
   @runtimeProperty("ModSettings.mod", "Auto Headlights")
   @runtimeProperty("ModSettings.category", "Darkness detection")
@@ -256,6 +264,7 @@ public func AHL_Notify(text: String) -> Void {
 public abstract class AHL_Settings {
   public static func Enabled() -> Bool { return AHL_Cfg().enabled; }
   public static func ManualPauses() -> Bool { return AHL_Cfg().manualPauses; }
+  public static func BikesAlwaysOn() -> Bool { return AHL_Cfg().bikesAlwaysOn; }
   public static func DuskHour() -> Int32 { return AHL_Cfg().duskHour; }
   public static func DawnHour() -> Int32 { return AHL_Cfg().dawnHour; }
   public static func UseWeather() -> Bool { return AHL_Cfg().useWeather; }
@@ -517,6 +526,14 @@ private final func AHL_Sample(vehicle: ref<VehicleObject>, now: Float) -> Void {
   let gi: GameInstance = vehicle.GetGame();
   let envDark: Bool;
   let covered: Bool = false;
+
+  // Motorcycles: headlight stays on regardless of ambient light.
+  if AHL_Settings.BikesAlwaysOn() && IsDefined(vehicle as BikeObject) {
+    this.ahl_wantOn = true;
+    this.ahl_hasDecision = true;
+    this.ahl_resumePending = false;
+    return;
+  };
 
   envDark = this.AHL_IsNight(gi) || (AHL_Settings.UseWeather() && this.AHL_IsGloomyWeather(gi));
   if !envDark && AHL_Settings.UseCoverDetection() {

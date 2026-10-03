@@ -7,6 +7,7 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 - **Night:** lights on between configurable in-game hours (default 19:00 to 06:00).
 - **Bad weather:** rain, fog, pollution, sandstorms and heavy clouds count as dark.
 - **Tunnels and cover:** detects roofs, garages and overpasses, with its own delay so short overpasses don't flicker the lights.
+- **Motorcycles:** headlight stays on whenever the engine is running (can be turned off in settings).
 - **Low beams only:** high beams are left alone if you turn them on yourself.
 - **Manual override:** using your headlight key pauses auto mode for the rest of the drive.
 - **Pause / resume key:** configurable key, with an optional Shift, Ctrl or Alt modifier.
@@ -39,6 +40,7 @@ In game: **Settings → Mods → Auto Headlights**.
 | General | Pause / resume modifier | None |
 | General | Headlight key pauses auto mode | On |
 | General | Show notifications | On |
+| General | Motorcycle headlights always on | On |
 | Darkness detection | Lights on from (hour) | 19 |
 | Darkness detection | Lights off from (hour) | 6 |
 | Darkness detection | Bad weather turns lights on | On |
