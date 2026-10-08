@@ -1,0 +1,8 @@
+# Release zips are built from the r6 folder.
+dist/
+
+# Anything not for release.
+_archive/
+
+# Screenshots and clips for the mod page.
+promo/
