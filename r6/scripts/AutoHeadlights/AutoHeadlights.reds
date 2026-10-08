@@ -605,7 +605,7 @@ public final func AHL_PauseFromManual() -> Void {
   };
 
   this.ahl_override = true;
-  AHL_Notify("Auto headlights paused");
+  AHL_Notify(AHL_Text("AutoHeadlights-Paused"));
 }
 
 @addMethod(VehicleComponent)
@@ -623,13 +623,13 @@ public final func AHL_ToggleAuto() -> Void {
   let now: Float = this.AHL_Now();
 
   if !AHL_Settings.Enabled() {
-    AHL_Notify("Auto headlights are disabled in Mod Settings");
+    AHL_Notify(AHL_Text("AutoHeadlights-Disabled"));
     return;
   };
 
   if !this.ahl_override {
     this.ahl_override = true;
-    AHL_Notify("Auto headlights paused");
+    AHL_Notify(AHL_Text("AutoHeadlights-Paused"));
     return;
   };
 
@@ -639,7 +639,7 @@ public final func AHL_ToggleAuto() -> Void {
   this.ahl_lastSeenStage = -1;
   this.ahl_settleUntil = now + 1.5;
   this.AHL_Start(0.0);
-  AHL_Notify("Auto headlights resumed");
+  AHL_Notify(AHL_Text("AutoHeadlights-Resumed"));
 }
 
 // ---------------------------------------------------------------------------

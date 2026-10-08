@@ -13,6 +13,7 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 - **Manual override:** using your headlight key pauses auto mode for the rest of the drive.
 - **Pause / resume key:** configurable key, with an optional Shift, Ctrl or Alt modifier.
 - **Mod Settings menu:** every option can be changed in game.
+- **Translatable:** on-screen messages go through Codeware's localization system.
 - **Standalone:** works on its own or alongside Vehicle Systems Simulation (VSS), and overrides VSS's force-on-at-entry behaviour without modifying it.
 
 ## Requirements
@@ -24,10 +25,11 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 
 ## Installation
 
-Copy the `r6` folder into your Cyberpunk 2077 install folder, so the script ends up at:
+Copy the `r6` folder into your Cyberpunk 2077 install folder, so the scripts end up at:
 
 ```
 Cyberpunk 2077\r6\scripts\AutoHeadlights\AutoHeadlights.reds
+Cyberpunk 2077\r6\scripts\AutoHeadlights\AutoHeadlightsLocalization.reds
 ```
 
 ## Settings
@@ -50,6 +52,10 @@ In game: **Settings → Mods → Auto Headlights**.
 | Timing | Night / weather delay (s) | 1.0 |
 | Timing | Tunnel delay (s) | 3.0 |
 | Timing | Lights off delay (s) | 4.0 |
+
+## Translations
+
+The mod's on-screen messages are registered with Codeware's localization system, so they can be translated without touching the main script. The English text and a how-to are in `AutoHeadlightsLocalization.reds`; to add a language, copy the English class, translate it and return it for that language. Translations are welcome. The Mod Settings page is English only.
 
 ## Notes
 
