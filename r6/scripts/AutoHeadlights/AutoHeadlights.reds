@@ -310,6 +310,7 @@ public abstract class AHL_Settings {
 @addField(VehicleComponent) public let ahl_keyArmedStage: Int32;
 
 @addField(PlayerPuppet) public let ahl_keyListener: ref<AHL_LightsKeyListener>;
+@addField(PlayerPuppet) public let ahl_keyListenerOn: Bool;
 
 public class AHL_TickCallback extends DelayCallback {
   public let vehComp: wref<VehicleComponent>;
@@ -359,6 +360,52 @@ public class AHL_LightsKeyListener {
 
     return false;
   }
+}
+
+// The headlight-key listener is only attached while the player is driving.
+// Leaving it on the player while on foot breaks sprinting after summoning a
+// vehicle (the summon and headlight actions share the V key).
+@addMethod(PlayerPuppet)
+public final func AHL_SetLightsKeyListener(on: Bool) -> Void {
+  if on {
+    if this.ahl_keyListenerOn {
+      return;
+    };
+    if !IsDefined(this.ahl_keyListener) {
+      this.ahl_keyListener = new AHL_LightsKeyListener();
+    };
+    this.RegisterInputListener(this.ahl_keyListener, n"CycleLights");
+    this.ahl_keyListenerOn = true;
+    return;
+  };
+
+  if !this.ahl_keyListenerOn {
+    return;
+  };
+  if IsDefined(this.ahl_keyListener) {
+    this.UnregisterInputListener(this.ahl_keyListener);
+  };
+  this.ahl_keyListenerOn = false;
+}
+
+// Turning off is skipped while the player is still driving, so a vehicle the
+// player has just left can't remove the listener from the one they got into.
+public func AHL_SetLightsKey(on: Bool) -> Void {
+  let player: ref<PlayerPuppet> = GetPlayer(GetGameInstance());
+  let vehicle: ref<VehicleObject>;
+
+  if !IsDefined(player) {
+    return;
+  };
+
+  if !on {
+    vehicle = player.GetMountedVehicle();
+    if IsDefined(vehicle) && vehicle.IsPlayerDriver() {
+      return;
+    };
+  };
+
+  player.AHL_SetLightsKeyListener(on);
 }
 
 // ---------------------------------------------------------------------------
@@ -675,6 +722,7 @@ private final func AHL_Start(guardSeconds: Float) -> Void {
 
 @addMethod(VehicleComponent)
 private final func AHL_Stop() -> Void {
+  AHL_SetLightsKey(false);
   this.ahl_active = false;
   this.ahl_token += 1;
   if this.ahl_token < 1 {
@@ -727,6 +775,10 @@ public final func AHL_Tick(token: Int32) -> Void {
     this.AHL_Stop();
     return;
   };
+
+  // --- Driving: make sure the headlight-key listener is attached. Done here
+  //     rather than on mount so it also works after loading a save in a car.
+  AHL_SetLightsKey(true);
 
   // --- Engine off: nothing to do, but poll quickly so we catch the start.
   if !vehicle.IsEngineTurnedOn() {
@@ -806,6 +858,8 @@ protected cb func OnVehicleFinishedMountingEvent(evt: ref<VehicleFinishedMountin
   if !evt.isMounting {
     // Getting out: guard briefly so nothing flips the lights as you leave.
     this.ahl_exitUntil = this.AHL_Now() + AHL_Settings.GuardSeconds();
+    // Safety net in case the monitor loop never reaches AHL_Stop.
+    AHL_SetLightsKey(false);
     return result;
   };
 
@@ -835,23 +889,9 @@ private final func OnGameAttach() -> Void {
 }
 
 @wrapMethod(PlayerPuppet)
-protected cb func OnGameAttached() -> Bool {
-  let result: Bool = wrappedMethod();
-
-  if !IsDefined(this.ahl_keyListener) {
-    this.ahl_keyListener = new AHL_LightsKeyListener();
-  };
-  this.RegisterInputListener(this.ahl_keyListener, n"CycleLights");
-
-  return result;
-}
-
-@wrapMethod(PlayerPuppet)
 protected cb func OnDetach() -> Bool {
-  if IsDefined(this.ahl_keyListener) {
-    this.UnregisterInputListener(this.ahl_keyListener);
-    this.ahl_keyListener = null;
-  };
+  this.AHL_SetLightsKeyListener(false);
+  this.ahl_keyListener = null;
 
   return wrappedMethod();
 }
