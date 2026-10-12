@@ -15,6 +15,7 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 - **Mod Settings menu:** every option can be changed in game.
 - **Translatable:** on-screen messages go through Codeware's localization system.
 - **Standalone:** works on its own or alongside Vehicle Systems Simulation (VSS), and overrides VSS's force-on-at-entry behaviour without modifying it.
+- **Enhanced Vehicle System:** works alongside EVS, including its headlight flash. Nothing extra to install.
 
 ## Requirements
 
@@ -59,7 +60,12 @@ The mod's on-screen messages are registered with Codeware's localization system,
 
 ## Notes
 
+- With Enhanced Vehicle System installed, turn off EVS's headlights time sync so only one mod decides when the lights come on.
 - Other headlight mods may conflict.
+
+## Credits
+
+- [Enhanced Vehicle System](https://www.nexusmods.com/cyberpunk2077/mods/11765) is by hgyi56. Auto Headlights does not include or change any of its files.
 
 ## License
 

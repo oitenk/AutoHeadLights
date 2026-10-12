@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.2
+
+- Now works alongside Enhanced Vehicle System. When EVS is installed, Auto Headlights keeps EVS's own headlight state in step with its decisions, so the two no longer disagree about whether the lights should be on.
+- Flashing the headlights with EVS no longer pauses auto mode.
+
+If you use EVS, turn off its headlights time sync so only one mod decides when the lights come on. Nothing changes if you don't use EVS, and no settings or saves are affected.
+
 ## 4.1
 
 - Fixed sprint not working on foot after summoning a vehicle, which could happen on some setups. The mod now only listens for the headlight key while you are driving. Thanks to kasperfinn for the report and the fix.

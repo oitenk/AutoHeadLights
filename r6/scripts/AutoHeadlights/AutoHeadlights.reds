@@ -308,6 +308,7 @@ public abstract class AHL_Settings {
 @addField(VehicleComponent) public let ahl_resumePending: Bool;
 @addField(VehicleComponent) public let ahl_keyArmedUntil: Float;
 @addField(VehicleComponent) public let ahl_keyArmedStage: Int32;
+@addField(VehicleComponent) public let ahl_flashUntil: Float;
 
 @addField(PlayerPuppet) public let ahl_keyListener: ref<AHL_LightsKeyListener>;
 @addField(PlayerPuppet) public let ahl_keyListenerOn: Bool;
@@ -331,14 +332,22 @@ public class AHL_LightsKeyListener {
     let vehicle: ref<VehicleObject>;
     let comp: ref<VehicleComponent>;
     let actionType: gameinputActionType;
+    let isFlash: Bool = Equals(ListenerAction.GetName(action), n"HeadlightsCall");
 
-    if !Equals(ListenerAction.GetName(action), n"CycleLights") {
+    if !isFlash && !Equals(ListenerAction.GetName(action), n"CycleLights") {
       return false;
     };
     actionType = ListenerAction.GetType(action);
-    if !Equals(actionType, gameinputActionType.BUTTON_PRESSED)
-        && !Equals(actionType, gameinputActionType.BUTTON_HOLD_COMPLETE) {
-      return false;
+    if isFlash {
+      if !Equals(actionType, gameinputActionType.BUTTON_PRESSED)
+          && !Equals(actionType, gameinputActionType.BUTTON_RELEASED) {
+        return false;
+      };
+    } else {
+      if !Equals(actionType, gameinputActionType.BUTTON_PRESSED)
+          && !Equals(actionType, gameinputActionType.BUTTON_HOLD_COMPLETE) {
+        return false;
+      };
     };
 
     player = GetPlayer(GetGameInstance());
@@ -353,14 +362,29 @@ public class AHL_LightsKeyListener {
 
     comp = vehicle.GetVehicleComponent();
     if IsDefined(comp) {
-      // Don't pause yet: a tap of the vanilla hold-to-toggle key does nothing.
-      // Remember the current light state and pause only if it actually changes.
-      comp.AHL_ArmManualCheck();
+      if isFlash {
+        comp.AHL_NoteFlash(Equals(actionType, gameinputActionType.BUTTON_PRESSED));
+      } else {
+        // Don't pause yet: a tap of the vanilla hold-to-toggle key does nothing.
+        // Remember the current light state and pause only if it actually changes.
+        comp.AHL_ArmManualCheck();
+      };
     };
 
     return false;
   }
 }
+
+// Enhanced Vehicle System's headlight flash key (only compiled when EVS is installed).
+@if(ModuleExists("Hgyi56.Enhanced_Vehicle_System"))
+@addMethod(PlayerPuppet)
+private final func AHL_RegisterOtherModKeys() -> Void {
+  this.RegisterInputListener(this.ahl_keyListener, n"HeadlightsCall");
+}
+
+@if(!ModuleExists("Hgyi56.Enhanced_Vehicle_System"))
+@addMethod(PlayerPuppet)
+private final func AHL_RegisterOtherModKeys() -> Void {}
 
 // The headlight-key listener is only attached while the player is driving.
 // Leaving it on the player while on foot breaks sprinting after summoning a
@@ -375,6 +399,7 @@ public final func AHL_SetLightsKeyListener(on: Bool) -> Void {
       this.ahl_keyListener = new AHL_LightsKeyListener();
     };
     this.RegisterInputListener(this.ahl_keyListener, n"CycleLights");
+    this.AHL_RegisterOtherModKeys();
     this.ahl_keyListenerOn = true;
     return;
   };
@@ -452,6 +477,26 @@ private final func AHL_ResetDecision() -> Void {
 }
 
 // ---------------------------------------------------------------------------
+//  Enhanced Vehicle System compatibility (only compiled when EVS is installed)
+// ---------------------------------------------------------------------------
+// EVS keeps its own headlight state for each vehicle and returns the lights to
+// it whenever the light mode changes. Storing our choice there first keeps the
+// two mods in agreement.
+@if(ModuleExists("Hgyi56.Enhanced_Vehicle_System"))
+@addMethod(VehicleComponent)
+private final func AHL_SyncOtherMods(mode: vehicleELightMode) -> Void {
+  let ps: ref<VehicleComponentPS> = this.GetPS();
+
+  if IsDefined(ps) && NotEquals(ps.m_hgyi56_EVS_currentHeadlightsState, mode) {
+    ps.m_hgyi56_EVS_currentHeadlightsState = mode;
+  };
+}
+
+@if(!ModuleExists("Hgyi56.Enhanced_Vehicle_System"))
+@addMethod(VehicleComponent)
+private final func AHL_SyncOtherMods(mode: vehicleELightMode) -> Void {}
+
+// ---------------------------------------------------------------------------
 //  Light output
 // ---------------------------------------------------------------------------
 // Returns true if it changed (or forced) the lights this call.
@@ -466,6 +511,8 @@ private final func AHL_Apply(on: Bool, inGuard: Bool) -> Bool {
   };
 
   if on {
+    this.AHL_SyncOtherMods(stage == 2 ? vehicleELightMode.HighBeams : vehicleELightMode.On);
+
     // Low beams. If high beams are already on, leave them.
     // Only set the light mode: ToggleLights(true, Head) switches on every
     // headlight lamp, high beams included.
@@ -475,6 +522,8 @@ private final func AHL_Apply(on: Bool, inGuard: Bool) -> Bool {
     };
     return false;
   };
+
+  this.AHL_SyncOtherMods(vehicleELightMode.Off);
 
   // During a guard window we switch off unconditionally, because some scripts
   // turn the lamps on directly without updating the stored light mode.
@@ -665,6 +714,14 @@ public final func AHL_ArmManualCheck() -> Void {
   this.ahl_keyArmedUntil = this.AHL_Now() + 2.0;
 }
 
+// A headlight flash is momentary and is not a manual change. Auto mode stands
+// by while the key is held and for a moment after, until the lights are back.
+@addMethod(VehicleComponent)
+public final func AHL_NoteFlash(held: Bool) -> Void {
+  this.ahl_flashUntil = this.AHL_Now() + (held ? 30.0 : 1.5);
+  this.ahl_keyArmedUntil = 0.0;
+}
+
 @addMethod(VehicleComponent)
 public final func AHL_ToggleAuto() -> Void {
   let now: Float = this.AHL_Now();
@@ -799,6 +856,14 @@ public final func AHL_Tick(token: Int32) -> Void {
 
   inGuard = now < this.ahl_guardUntil;
   stage = this.AHL_CurrentStage();
+
+  // --- The headlights are being flashed: leave them alone until it is over,
+  //     then take the lights as they are as the new baseline.
+  if now < this.ahl_flashUntil {
+    this.ahl_lastSeenStage = -1;
+    this.AHL_Schedule(vehicle, token, 0.1);
+    return;
+  };
 
   // --- Headlight key was pressed recently and the lights really changed.
   if !this.ahl_override && now < this.ahl_keyArmedUntil
