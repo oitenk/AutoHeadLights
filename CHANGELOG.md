@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.3
+
+- Mod Settings is now optional. Without it, Auto Headlights loads with its default settings; with it, everything can be changed in game as before.
+- Checked against the latest game patch and Codeware.
+
+Nothing changes if you already use Mod Settings, and no settings or saves are affected.
+
 ## 4.2
 
 - Now works alongside Enhanced Vehicle System. When EVS is installed, Auto Headlights keeps EVS's own headlight state in step with its decisions, so the two no longer disagree about whether the lights should be on.

@@ -12,7 +12,7 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 - **Low beams only:** high beams are left alone if you turn them on yourself.
 - **Manual override:** using your headlight key pauses auto mode for the rest of the drive.
 - **Pause / resume key:** configurable key, with an optional Shift, Ctrl or Alt modifier.
-- **Mod Settings menu:** every option can be changed in game.
+- **Mod Settings menu:** every option can be changed in game. Optional: without Mod Settings the defaults below apply.
 - **Translatable:** on-screen messages go through Codeware's localization system.
 - **Standalone:** works on its own or alongside Vehicle Systems Simulation (VSS), and overrides VSS's force-on-at-entry behaviour without modifying it.
 - **Enhanced Vehicle System:** works alongside EVS, including its headlight flash. Nothing extra to install.
@@ -22,7 +22,9 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 - [redscript](https://www.nexusmods.com/cyberpunk2077/mods/1511)
 - [RED4ext](https://www.nexusmods.com/cyberpunk2077/mods/2380)
 - [Codeware](https://www.nexusmods.com/cyberpunk2077/mods/7780)
-- [Mod Settings](https://www.nexusmods.com/cyberpunk2077/mods/4885)
+
+Optional:
+- [Mod Settings](https://www.nexusmods.com/cyberpunk2077/mods/4885) - adds the in-game options page. Without it the defaults apply.
 
 ## Installation
 
@@ -35,7 +37,7 @@ Cyberpunk 2077\r6\scripts\AutoHeadlights\AutoHeadlightsLocalization.reds
 
 ## Settings
 
-In game: **Settings → Mods → Auto Headlights**.
+In game: **Settings → Mods → Auto Headlights** (needs Mod Settings). Without Mod Settings the defaults in this table apply.
 
 | Category | Setting | Default |
 |---|---|---|

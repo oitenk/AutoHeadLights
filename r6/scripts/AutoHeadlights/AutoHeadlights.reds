@@ -21,7 +21,7 @@ import Codeware.*
 //  Pressing your headlight key while driving pauses auto mode; press the
 //  pause/resume key (set in Mod Settings) to hand control back to the mod.
 //
-//  Requires: Codeware, Mod Settings.
+//  Requires: Codeware. Optional: Mod Settings (without it the defaults apply).
 // ============================================================================
 
 // ---------------------------------------------------------------------------
@@ -138,6 +138,23 @@ public class AHL_Config {
   public let offDelay: Float = 4.0;
 }
 
+// Mod Settings is optional: without it these do nothing and the defaults above apply.
+@if(ModuleExists("ModSettingsModule"))
+func AHL_RegisterSettings(config: ref<AHL_Config>) -> Void {
+  ModSettings.RegisterListenerToClass(config);
+}
+
+@if(!ModuleExists("ModSettingsModule"))
+func AHL_RegisterSettings(config: ref<AHL_Config>) -> Void {}
+
+@if(ModuleExists("ModSettingsModule"))
+func AHL_UnregisterSettings(config: ref<AHL_Config>) -> Void {
+  ModSettings.UnregisterListenerToClass(config);
+}
+
+@if(!ModuleExists("ModSettingsModule"))
+func AHL_UnregisterSettings(config: ref<AHL_Config>) -> Void {}
+
 // Background system: owns the settings and listens for the pause/resume key.
 public class AHL_System extends ScriptableSystem {
   private let m_config: ref<AHL_Config>;
@@ -147,13 +164,13 @@ public class AHL_System extends ScriptableSystem {
 
   private func OnAttach() -> Void {
     this.m_config = new AHL_Config();
-    ModSettings.RegisterListenerToClass(this.m_config);
+    AHL_RegisterSettings(this.m_config);
     GameInstance.GetCallbackSystem().RegisterCallback(n"Input/Key", this, n"OnKeyInput", true);
   }
 
   private func OnDetach() -> Void {
     if IsDefined(this.m_config) {
-      ModSettings.UnregisterListenerToClass(this.m_config);
+      AHL_UnregisterSettings(this.m_config);
     };
     GameInstance.GetCallbackSystem().UnregisterCallback(n"Input/Key", this);
   }
@@ -161,7 +178,7 @@ public class AHL_System extends ScriptableSystem {
   public func GetConfig() -> ref<AHL_Config> {
     if !IsDefined(this.m_config) {
       this.m_config = new AHL_Config();
-      ModSettings.RegisterListenerToClass(this.m_config);
+      AHL_RegisterSettings(this.m_config);
     };
     return this.m_config;
   }
