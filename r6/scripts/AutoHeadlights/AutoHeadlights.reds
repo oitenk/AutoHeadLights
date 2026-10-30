@@ -137,6 +137,33 @@ public class AHL_Config {
   @runtimeProperty("ModSettings.max", "15.0")
   @runtimeProperty("ModSettings.step", "0.5")
   public let offDelay: Float = 4.0;
+
+  @runtimeProperty("ModSettings.mod", "Auto Headlights")
+  @runtimeProperty("ModSettings.category", "Traffic")
+  @runtimeProperty("ModSettings.displayName", "Control traffic headlights")
+  @runtimeProperty("ModSettings.description", "NPC vehicles switch their headlights for night, bad weather and tunnels too, using the same settings as yours. Leave this off if another mod already handles traffic headlights.")
+  public let npcEnabled: Bool = false;
+
+  @runtimeProperty("ModSettings.mod", "Auto Headlights")
+  @runtimeProperty("ModSettings.category", "Traffic")
+  @runtimeProperty("ModSettings.displayName", "Traffic tunnel range (m)")
+  @runtimeProperty("ModSettings.description", "Tunnels are only checked for traffic this close to you. Night and weather apply to all traffic.")
+  @runtimeProperty("ModSettings.min", "25.0")
+  @runtimeProperty("ModSettings.max", "200.0")
+  @runtimeProperty("ModSettings.step", "5.0")
+  public let npcRange: Float = 100.0;
+
+  @runtimeProperty("ModSettings.mod", "Auto Headlights")
+  @runtimeProperty("ModSettings.category", "Debug")
+  @runtimeProperty("ModSettings.displayName", "Debug logging")
+  @runtimeProperty("ModSettings.description", "Write diagnostic messages to the Cyber Engine Tweaks log.")
+  public let debugLog: Bool = false;
+
+  @runtimeProperty("ModSettings.mod", "Auto Headlights")
+  @runtimeProperty("ModSettings.category", "Debug")
+  @runtimeProperty("ModSettings.displayName", "Traffic: treat every road as a tunnel")
+  @runtimeProperty("ModSettings.description", "For testing. Traffic within range acts as if it were under cover, so tunnel switching can be checked anywhere.")
+  public let npcForceCover: Bool = false;
 }
 
 // Mod Settings is optional: without it these do nothing and the defaults above apply.
@@ -163,10 +190,155 @@ public class AHL_System extends ScriptableSystem {
   private let m_ctrlHeld: Bool;
   private let m_altHeld: Bool;
 
+  // Traffic headlights
+  private let m_npcs: array<wref<VehicleComponent>>;
+  private let m_npcToken: Int32;
+  private let m_npcWasOn: Bool;
+  private let m_npcNextLogAt: Float;
+  private let m_npcSwitched: Int32;
+  private let m_npcReapplied: Int32;
+  private let m_npcLastTickAt: Float;
+
   private func OnAttach() -> Void {
     this.m_config = new AHL_Config();
     AHL_RegisterSettings(this.m_config);
     GameInstance.GetCallbackSystem().RegisterCallback(n"Input/Key", this, n"OnKeyInput", true);
+  }
+
+  private func OnPlayerAttach(request: ref<PlayerAttachRequest>) -> Void {
+    this.m_npcToken += 1;
+    this.ScheduleNpcTick(1.0);
+  }
+
+  // Every vehicle that streams in is listed here; the traffic loop skips the
+  // ones it shouldn't touch.
+  public func RegisterVehicle(comp: ref<VehicleComponent>) -> Void {
+    if !IsDefined(comp) || comp.ahl_npcListed {
+      return;
+    };
+    comp.ahl_npcListed = true;
+    ArrayPush(this.m_npcs, comp);
+
+    // Make sure the traffic loop is running (e.g. after loading a save).
+    if EngineTime.ToFloat(GameInstance.GetEngineTime(this.GetGameInstance())) - this.m_npcLastTickAt > 5.0 {
+      this.m_npcLastTickAt = EngineTime.ToFloat(GameInstance.GetEngineTime(this.GetGameInstance()));
+      this.m_npcToken += 1;
+      this.ScheduleNpcTick(0.5);
+    };
+  }
+
+  private func ScheduleNpcTick(delay: Float) -> Void {
+    let cb: ref<AHL_NpcTickCallback> = new AHL_NpcTickCallback();
+    cb.sys = this;
+    cb.token = this.m_npcToken;
+    GameInstance.GetDelaySystem(this.GetGameInstance()).DelayCallback(cb, delay, true);
+  }
+
+  public func NpcTick(token: Int32) -> Void {
+    let cfg: ref<AHL_Config> = this.GetConfig();
+    let gi: GameInstance = this.GetGameInstance();
+    let now: Float = EngineTime.ToFloat(GameInstance.GetEngineTime(gi));
+    let player: ref<PlayerPuppet> = GetPlayer(gi);
+    let kept: array<wref<VehicleComponent>>;
+    let comp: ref<VehicleComponent>;
+    let vehicle: ref<VehicleObject>;
+    let envDark: Bool;
+    let force: Bool;
+    let rangeSq: Float;
+    let inRange: Bool;
+    let canRay: Bool;
+    let rays: Int32 = 0;
+    let engineOff: Int32 = 0;
+    let controlled: Int32 = 0;
+    let near: Int32 = 0;
+    let lit: Int32 = 0;
+    let result: Int32;
+
+    if token != this.m_npcToken {
+      return;
+    };
+    this.m_npcLastTickAt = now;
+
+    // Switched off: hand every vehicle we touched back the way we found it.
+    if !cfg.npcEnabled || !cfg.enabled {
+      for c in this.m_npcs {
+        comp = c;
+        if IsDefined(comp) && IsDefined(comp.GetVehicle()) {
+          if this.m_npcWasOn {
+            comp.AHL_NpcRestore();
+          };
+          ArrayPush(kept, comp);
+        } else {
+          if IsDefined(comp) { comp.ahl_npcListed = false; };
+        };
+      };
+      if this.m_npcWasOn {
+        AHL_Log("traffic: switched off, lights restored");
+      };
+      this.m_npcWasOn = false;
+      this.m_npcs = kept;
+      this.ScheduleNpcTick(2.0);
+      return;
+    };
+    this.m_npcWasOn = true;
+
+    envDark = AHL_IsNightNow(gi) || (cfg.useWeather && AHL_IsGloomyNow(gi));
+    force = cfg.npcForceCover;
+    rangeSq = cfg.npcRange * cfg.npcRange;
+
+    for c in this.m_npcs {
+      comp = c;
+      vehicle = IsDefined(comp) ? comp.GetVehicle() : null;
+
+      if IsDefined(comp) && !IsDefined(vehicle) {
+        comp.ahl_npcListed = false;
+      };
+
+      if IsDefined(vehicle) {
+        ArrayPush(kept, comp);
+
+        // The player's car has its own loop; the metro is left alone.
+        if !comp.ahl_active && !vehicle.IsPlayerDriver() && !IsDefined(vehicle as ncartMetroObject) {
+          // Parked and empty vehicles keep their lights as they are.
+          if !vehicle.IsEngineTurnedOn() {
+            engineOff += 1;
+          } else {
+            controlled += 1;
+            inRange = IsDefined(player)
+                && Vector4.DistanceSquared(player.GetWorldPosition(), vehicle.GetWorldPosition()) <= rangeSq;
+            if inRange { near += 1; };
+
+            // Roof checks cost a few raycasts, so only a handful run per tick.
+            canRay = inRange && !envDark && !force && cfg.useCover
+                && rays < AHL_Settings.NpcRaysPerTick() && now >= comp.ahl_npcNextRayAt;
+            if canRay { rays += 1; };
+
+            result = comp.AHL_NpcUpdate(vehicle, now, envDark, inRange, canRay, force);
+            if result == 1 { this.m_npcSwitched += 1; };
+            if result == 2 { this.m_npcReapplied += 1; };
+            if comp.ahl_npcWantOn { lit += 1; };
+          };
+        };
+      };
+    };
+    this.m_npcs = kept;
+
+    if cfg.debugLog && now >= this.m_npcNextLogAt {
+      this.m_npcNextLogAt = now + 5.0;
+      AHL_Log("traffic: listed " + IntToString(ArraySize(kept))
+        + ", engine off " + IntToString(engineOff)
+        + ", controlled " + IntToString(controlled)
+        + " (" + IntToString(near) + " in range)"
+        + ", lights on " + IntToString(lit)
+        + ", switched " + IntToString(this.m_npcSwitched)
+        + ", re-applied " + IntToString(this.m_npcReapplied)
+        + ", dark " + (envDark ? "yes" : "no")
+        + (force ? ", treating roads as tunnels" : ""));
+      this.m_npcSwitched = 0;
+      this.m_npcReapplied = 0;
+    };
+
+    this.ScheduleNpcTick(AHL_Settings.NpcTickInterval());
   }
 
   private func OnDetach() -> Void {
@@ -266,13 +438,34 @@ public class AHL_System extends ScriptableSystem {
   }
 }
 
+public class AHL_NpcTickCallback extends DelayCallback {
+  public let sys: wref<AHL_System>;
+  public let token: Int32;
+
+  public func Call() -> Void {
+    if IsDefined(this.sys) {
+      this.sys.NpcTick(this.token);
+    };
+  }
+}
+
+public func AHL_Sys() -> ref<AHL_System> {
+  return GameInstance.GetScriptableSystemsContainer(GetGameInstance()).Get(n"AutoHeadlights.AHL_System") as AHL_System;
+}
+
 public func AHL_Cfg() -> ref<AHL_Config> {
-  let sys: ref<AHL_System> = GameInstance.GetScriptableSystemsContainer(GetGameInstance()).Get(n"AutoHeadlights.AHL_System") as AHL_System;
+  let sys: ref<AHL_System> = AHL_Sys();
 
   if IsDefined(sys) {
     return sys.GetConfig();
   };
   return new AHL_Config();
+}
+
+public func AHL_Log(message: String) -> Void {
+  if AHL_Cfg().debugLog {
+    FTLog("[AutoHeadlights] " + message);
+  };
 }
 
 public func AHL_Notify(text: String) -> Void {
@@ -304,6 +497,9 @@ public abstract class AHL_Settings {
   // Internal timings (not in the menu).
   public static func SampleInterval() -> Float { return 0.5; }
   public static func GuardSeconds() -> Float { return 2.0; }
+  public static func NpcTickInterval() -> Float { return 0.5; }
+  public static func NpcRaysPerTick() -> Int32 { return 8; }
+  public static func NpcRayInterval() -> Float { return 1.0; }
 }
 
 // ---------------------------------------------------------------------------
@@ -327,6 +523,19 @@ public abstract class AHL_Settings {
 @addField(VehicleComponent) public let ahl_keyArmedUntil: Float;
 @addField(VehicleComponent) public let ahl_keyArmedStage: Int32;
 @addField(VehicleComponent) public let ahl_flashUntil: Float;
+
+// Traffic (kept apart from the player-car state above)
+@addField(VehicleComponent) public let ahl_npcListed: Bool;
+@addField(VehicleComponent) public let ahl_npcTouched: Bool;
+@addField(VehicleComponent) public let ahl_npcOrigStage: Int32;
+@addField(VehicleComponent) public let ahl_npcHasDecision: Bool;
+@addField(VehicleComponent) public let ahl_npcWantOn: Bool;
+@addField(VehicleComponent) public let ahl_npcCovered: Bool;
+@addField(VehicleComponent) public let ahl_npcNextRayAt: Float;
+@addField(VehicleComponent) public let ahl_npcDarkSince: Float;
+@addField(VehicleComponent) public let ahl_npcLightSince: Float;
+@addField(VehicleComponent) public let ahl_npcJitter: Float;
+@addField(VehicleComponent) public let ahl_npcAppliedAt: Float;
 
 @addField(PlayerPuppet) public let ahl_keyListener: ref<AHL_LightsKeyListener>;
 @addField(PlayerPuppet) public let ahl_keyListenerOn: Bool;
@@ -559,8 +768,18 @@ private final func AHL_Apply(on: Bool, inGuard: Bool) -> Bool {
 // ---------------------------------------------------------------------------
 //  "Is it dark?" sensors
 // ---------------------------------------------------------------------------
+// Night and weather are the same for every vehicle, so these are shared.
 @addMethod(VehicleComponent)
 private final func AHL_IsNight(gi: GameInstance) -> Bool {
+  return AHL_IsNightNow(gi);
+}
+
+@addMethod(VehicleComponent)
+private final func AHL_IsGloomyWeather(gi: GameInstance) -> Bool {
+  return AHL_IsGloomyNow(gi);
+}
+
+public func AHL_IsNightNow(gi: GameInstance) -> Bool {
   let timeSystem: ref<TimeSystem> = GameInstance.GetTimeSystem(gi);
   let hour: Int32;
   let dusk: Int32;
@@ -588,8 +807,7 @@ private final func AHL_IsNight(gi: GameInstance) -> Bool {
   return false;
 }
 
-@addMethod(VehicleComponent)
-private final func AHL_IsGloomyWeather(gi: GameInstance) -> Bool {
+public func AHL_IsGloomyNow(gi: GameInstance) -> Bool {
   let weatherSystem: ref<WeatherSystem> = GameInstance.GetWeatherSystem(gi);
   let name: String;
 
@@ -722,6 +940,120 @@ private final func AHL_Sample(vehicle: ref<VehicleObject>, now: Float) -> Void {
     if this.ahl_lightSince >= 0.0 && (now - this.ahl_lightSince) >= AHL_Settings.OffDelay() {
       this.ahl_wantOn = false;
     };
+  };
+}
+
+// ---------------------------------------------------------------------------
+//  Traffic: one update per NPC vehicle, called by AHL_System.NpcTick
+// ---------------------------------------------------------------------------
+// Returns 1 if the lights were switched, 2 if they had to be set again
+// because something else changed them back, otherwise 0.
+@addMethod(VehicleComponent)
+public final func AHL_NpcUpdate(vehicle: ref<VehicleObject>, now: Float, envDark: Bool,
+    inRange: Bool, canRay: Bool, force: Bool) -> Int32 {
+  let covered: Bool;
+  let dark: Bool;
+  let wasOn: Bool = this.ahl_npcWantOn;
+  let delay: Float;
+
+  if !this.ahl_npcTouched {
+    this.ahl_npcTouched = true;
+    this.ahl_npcOrigStage = this.AHL_CurrentStage();
+    this.ahl_npcHasDecision = false;
+    this.ahl_npcCovered = false;
+    this.ahl_npcNextRayAt = 0.0;
+    this.ahl_npcDarkSince = -1.0;
+    this.ahl_npcLightSince = -1.0;
+    // A little spread so traffic doesn't all switch at the same moment.
+    this.ahl_npcJitter = RandRangeF(0.0, 1.5);
+  };
+
+  if AHL_Settings.BikesAlwaysOn() && IsDefined(vehicle as BikeObject) {
+    dark = true;
+  } else {
+    if envDark || !inRange {
+      this.ahl_npcCovered = false;
+    } else {
+      if force {
+        this.ahl_npcCovered = true;
+      } else {
+        if canRay {
+          this.ahl_npcCovered = this.AHL_IsUnderCover(vehicle);
+          this.ahl_npcNextRayAt = now + AHL_Settings.NpcRayInterval();
+        };
+      };
+    };
+    covered = this.ahl_npcCovered;
+    dark = envDark || covered;
+  };
+
+  if dark {
+    this.ahl_npcLightSince = -1.0;
+    if this.ahl_npcDarkSince < 0.0 { this.ahl_npcDarkSince = now; };
+  } else {
+    this.ahl_npcDarkSince = -1.0;
+    if this.ahl_npcLightSince < 0.0 { this.ahl_npcLightSince = now; };
+  };
+
+  // First look at this vehicle: decide straight away.
+  if !this.ahl_npcHasDecision {
+    this.ahl_npcHasDecision = true;
+    this.ahl_npcWantOn = dark;
+    this.AHL_Apply(dark, true);
+    this.ahl_npcAppliedAt = now;
+    return 1;
+  };
+
+  if !this.ahl_npcWantOn {
+    delay = envDark ? AHL_Settings.NightWeatherDelay() : AHL_Settings.TunnelDelay();
+    if dark && (now - this.ahl_npcDarkSince) >= delay + this.ahl_npcJitter {
+      this.ahl_npcWantOn = true;
+    };
+  } else {
+    if !dark && (now - this.ahl_npcLightSince) >= AHL_Settings.OffDelay() + this.ahl_npcJitter {
+      this.ahl_npcWantOn = false;
+    };
+  };
+
+  if NotEquals(wasOn, this.ahl_npcWantOn) {
+    this.AHL_Apply(this.ahl_npcWantOn, true);
+    this.ahl_npcAppliedAt = now;
+    return 1;
+  };
+
+  // Keep it that way if the light mode was changed back.
+  if (now - this.ahl_npcAppliedAt) > 1.5 && this.AHL_Apply(this.ahl_npcWantOn, false) {
+    this.ahl_npcAppliedAt = now;
+    return 2;
+  };
+
+  return 0;
+}
+
+// Puts the lights back the way they were before the traffic option took over.
+@addMethod(VehicleComponent)
+public final func AHL_NpcRestore() -> Void {
+  let ctrlPS: ref<vehicleControllerPS>;
+
+  if !this.ahl_npcTouched {
+    return;
+  };
+  this.ahl_npcTouched = false;
+  this.ahl_npcHasDecision = false;
+
+  if this.ahl_active {
+    return;
+  };
+
+  if this.ahl_npcOrigStage == 0 {
+    this.AHL_Apply(false, true);
+    return;
+  };
+
+  ctrlPS = this.GetVehicleControllerPS();
+  if IsDefined(ctrlPS) {
+    this.AHL_SyncOtherMods(this.ahl_npcOrigStage == 2 ? vehicleELightMode.HighBeams : vehicleELightMode.On);
+    ctrlPS.SetHeadLightMode(this.ahl_npcOrigStage == 2 ? vehicleELightMode.HighBeams : vehicleELightMode.On);
   };
 }
 
@@ -977,8 +1309,15 @@ protected cb func OnVehicleFinishedMountingEvent(evt: ref<VehicleFinishedMountin
 @wrapMethod(VehicleComponent)
 private final func OnGameAttach() -> Void {
   let vehicle: ref<VehicleObject>;
+  let sys: ref<AHL_System>;
 
   wrappedMethod();
+
+  // Every vehicle is listed for the traffic option (it does nothing while off).
+  sys = AHL_Sys();
+  if IsDefined(sys) {
+    sys.RegisterVehicle(this);
+  };
 
   vehicle = this.GetVehicle();
   if IsDefined(vehicle) && vehicle.IsPlayerDriver() {

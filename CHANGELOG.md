@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.4.0
+
+NEW! Traffic headlights. NPC vehicles can switch their headlights for night, bad weather and tunnels, using the same settings as yours. Off by default: turn it on under Settings → Mods → Auto Headlights → Traffic.
+
+NEW! Traffic tunnel range setting. Tunnels are checked for traffic this close to you; night and weather apply to all traffic.
+
+NEW! Debug settings: optional logging, and a test switch that makes nearby traffic act as if every road were a tunnel.
+
+Nothing changes for your own vehicle, and no settings or saves are affected.
+
 ## 4.3.1
 
 Headlights now come on in Nova City 2's darker weather: Gloomy, Meme Clouds, Blackout, Drizzle, Heavy Drizzle, Downpour, Mist and Rain Storm.

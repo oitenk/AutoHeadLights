@@ -8,6 +8,7 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 - **Bad weather:** rain, fog, pollution, sandstorms and heavy clouds count as dark. Nova City 2's darker weather (drizzle, downpour, storms, mist, gloomy, blackout and meme clouds) counts too.
 - **Tunnels and cover:** detects roofs, garages and overpasses, with its own delay so short overpasses don't flicker the lights.
 - **Adjustable ceiling height:** set how far above the vehicle a roof still counts as cover (default 10 m), so high overpasses and elevated highways don't trigger the lights.
+- **Traffic (optional, off by default):** NPC vehicles can follow the same rules: lights for night, bad weather and tunnels, off in daylight. Tunnels are checked for traffic near you. Leave it off if another mod already handles traffic headlights.
 - **Motorcycles:** headlight stays on whenever the engine is running, day or night (can be turned off in settings).
 - **Low beams only:** high beams are left alone if you turn them on yourself.
 - **Manual override:** using your headlight key pauses auto mode for the rest of the drive.
@@ -55,6 +56,14 @@ In game: **Settings → Mods → Auto Headlights** (needs Mod Settings). Without
 | Timing | Night / weather delay (s) | 1.0 |
 | Timing | Tunnel delay (s) | 3.0 |
 | Timing | Lights off delay (s) | 4.0 |
+| Traffic | Control traffic headlights | Off |
+| Traffic | Traffic tunnel range (m) | 100 |
+| Debug | Debug logging | Off |
+| Debug | Traffic: treat every road as a tunnel | Off |
+
+Traffic uses the same hours, weather, tunnel and delay settings as your own vehicle. Parked vehicles are left alone. Switching the traffic option off puts the lights back the way they were.
+
+The Debug settings are for testing: logging writes to the Cyber Engine Tweaks log, and "treat every road as a tunnel" makes nearby traffic act as if it were under cover, so tunnel switching can be checked anywhere.
 
 ## Translations
 
