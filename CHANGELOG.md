@@ -10,6 +10,8 @@ NEW! Debug settings: optional logging, and a test switch that makes nearby traff
 
 Nothing changes for your own vehicle, and no settings or saves are affected.
 
+Beta: traffic headlights have been tested in daytime and with the tunnel test switch. Night, bad weather and switching the option off during play haven't been fully tested yet. Your own vehicle's headlights work exactly as before. Feedback is welcome.
+
 ## 4.3.1
 
 Headlights now come on in Nova City 2's darker weather: Gloomy, Meme Clouds, Blackout, Drizzle, Heavy Drizzle, Downpour, Mist and Rain Storm.
