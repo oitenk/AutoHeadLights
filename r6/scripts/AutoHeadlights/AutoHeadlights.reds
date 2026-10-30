@@ -7,7 +7,8 @@ import Codeware.*
 //
 //  Headlights react to ambient light:
 //    - time of day (night)
-//    - gloomy weather (rain, fog, pollution, sandstorm, heavy clouds)
+//    - gloomy weather (rain, fog, pollution, sandstorm, heavy clouds, and
+//      Nova City 2's drizzle, downpour, storm, mist, gloomy, blackout, meme clouds)
 //    - being under cover (tunnels, garages, overpasses) - with its own delay
 //
 //  Motorcycles can optionally keep their headlight on at all times.
@@ -603,11 +604,27 @@ private final func AHL_IsGloomyWeather(gi: GameInstance) -> Bool {
 
   name = NameToString(state.name);
 
+  // Nova City 2 states that are bright enough without headlights,
+  // even though their names contain one of the words below.
+  if StrContains(name, "distant_rain")
+      || StrContains(name, "haze_pollution")
+      || StrContains(name, "drizzle_light") {
+    return false;
+  };
+
   return StrContains(name, "rain")
       || StrContains(name, "fog")
       || StrContains(name, "pollution")
       || StrContains(name, "sandstorm")
-      || StrContains(name, "heavy_clouds");
+      || StrContains(name, "heavy_clouds")
+      // Nova City 2 states
+      || StrContains(name, "drizzle")
+      || StrContains(name, "downpour")
+      || StrContains(name, "storm")
+      || StrContains(name, "mist")
+      || StrContains(name, "gloomy")
+      || StrContains(name, "blackout")
+      || StrContains(name, "meme_clouds");
 }
 
 // Three rays straight up (front, middle, rear). Two hits = under a roof.

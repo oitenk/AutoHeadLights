@@ -5,7 +5,7 @@ A Cyberpunk 2077 redscript mod that switches vehicle headlights on and off based
 ## Features
 
 - **Night:** lights on between configurable in-game hours (default 19:00 to 06:00).
-- **Bad weather:** rain, fog, pollution, sandstorms and heavy clouds count as dark.
+- **Bad weather:** rain, fog, pollution, sandstorms and heavy clouds count as dark. Nova City 2's darker weather (drizzle, downpour, storms, mist, gloomy, blackout and meme clouds) counts too.
 - **Tunnels and cover:** detects roofs, garages and overpasses, with its own delay so short overpasses don't flicker the lights.
 - **Adjustable ceiling height:** set how far above the vehicle a roof still counts as cover (default 10 m), so high overpasses and elevated highways don't trigger the lights.
 - **Motorcycles:** headlight stays on whenever the engine is running, day or night (can be turned off in settings).
