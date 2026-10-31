@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.3.2
+
+Headlights now come on in ImmersiveCityAmbience Weather's Misty weather.
+
+With ImmersiveCityAmbience Weather installed, headlights stay off in its Overcast and Smog weather, which it gives a brighter sky.
+
+Nothing changes without ImmersiveCityAmbience Weather, and no settings or saves are affected.
+
 ## 4.3.1
 
 Headlights now come on in Nova City 2's darker weather: Gloomy, Meme Clouds, Blackout, Drizzle, Heavy Drizzle, Downpour, Mist and Rain Storm.

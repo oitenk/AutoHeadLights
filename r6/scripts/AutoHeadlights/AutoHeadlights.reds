@@ -612,6 +612,20 @@ private final func AHL_IsGloomyWeather(gi: GameInstance) -> Bool {
     return false;
   };
 
+  // ImmersiveCityAmbience Weather shows q302_squat_morning as "Misty".
+  if StrContains(name, "squat_morning") {
+    return true;
+  };
+
+  // ImmersiveCityAmbience Weather gives Overcast and Smog a brighter sky,
+  // so they only count as gloomy when that mod isn't running.
+  if (StrContains(name, "24h_weather_heavy_clouds")
+      || StrContains(name, "24h_weather_pollution"))
+      && !StrContains(name, "ica_lit_")
+      && this.AHL_IsICAWeatherRunning(gi) {
+    return false;
+  };
+
   return StrContains(name, "rain")
       || StrContains(name, "fog")
       || StrContains(name, "pollution")
@@ -625,6 +639,14 @@ private final func AHL_IsGloomyWeather(gi: GameInstance) -> Bool {
       || StrContains(name, "gloomy")
       || StrContains(name, "blackout")
       || StrContains(name, "meme_clouds");
+}
+
+// Looked up by name, so ImmersiveCityAmbience Weather stays optional.
+@addMethod(VehicleComponent)
+private final func AHL_IsICAWeatherRunning(gi: GameInstance) -> Bool {
+  let container = GameInstance.GetScriptableSystemsContainer(gi);
+  return IsDefined(container)
+      && IsDefined(container.Get(n"ImmersiveCityAmbience.ICAWeather"));
 }
 
 // Three rays straight up (front, middle, rear). Two hits = under a roof.
